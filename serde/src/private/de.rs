@@ -214,7 +214,7 @@ mod content {
 
     use crate::de::{
         self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Expected, IgnoredAny,
-        MapAccess, SeqAccess, Unexpected, Visitor,
+        MapAccess, SeqAccess, Unexpected, VariantAccess, Visitor,
     };
     use crate::serde_core_private::size_hint;
     pub use crate::serde_core_private::Content;
@@ -501,12 +501,17 @@ mod content {
             Ok(Content::Map(vec))
         }
 
-        fn visit_enum<V>(self, _visitor: V) -> Result<Self::Value, V::Error>
+        fn visit_enum<V>(self, visitor: V) -> Result<Self::Value, V::Error>
         where
             V: EnumAccess<'de>,
         {
-            Err(de::Error::custom(
-                "untagged and internally tagged enums do not support enum input",
+            let (key, data) = tri!(visitor.variant::<String>());
+            Ok(Content::Map(
+                [(
+                    Content::String(key),
+                    tri!(data.newtype_variant::<Self::Value>()),
+                )]
+                .into(),
             ))
         }
     }
